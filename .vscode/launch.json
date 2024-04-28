@@ -1,0 +1,48 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'arxml_lang_server'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=arxml_lang_server",
+                    "--package=arxml_lang_server",
+                    "--profile=release"
+                ],
+                "filter": {
+                    "name": "arxml_lang_server",
+                    "kind": "bin"
+                },
+            },
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "run 'arxml_lang_server'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=arxml_lang_server",
+                    "--package=arxml_lang_server",
+                    "--release"
+                ],
+                "filter": {
+                    "name": "arxml_lang_server",
+                    "kind": "bin"
+                }
+            },
+            "args": [
+                "127.0.0.1",
+                "12345"
+            ],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}
