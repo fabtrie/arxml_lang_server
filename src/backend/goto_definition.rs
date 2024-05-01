@@ -18,7 +18,11 @@ pub async fn goto_definition(backend: &Backend, params: GotoDefinitionParams) ->
             backend.parsers.iter().for_each(|parser| {
                 let mut nodes = Vec::new();
                 nodes.push(parser.ident_nodes.get(path));
-                nodes.push(parser.ident_nodes.get(&path.replace("/AUTOSAR/EcucDefs", "/MICROSAR")));
+                if let Some(vendor_mapping) = &parser.vendor_mapping {
+                    if path.starts_with(vendor_mapping.1.as_str()) {
+                        nodes.push(parser.ident_nodes.get(&path.replace(vendor_mapping.1.as_str(), vendor_mapping.0.as_str())));
+                    }
+                }
 
                 for node in nodes {
                     if let Some(node) = node {

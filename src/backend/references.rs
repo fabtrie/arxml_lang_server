@@ -17,12 +17,16 @@ pub async fn references(backend: &Backend, params: ReferenceParams) -> Result<Op
             let node_path = &node.unwrap().path;
             let mut refs = Vec::new();
 
+            let vendor_mapping = &parser.vendor_mapping;
+
             for parser in backend.parsers.iter() {
                 // eprintln!("parser: {:?}", parser.file);
                 let mut nodes = Vec::new();
                 nodes.push(parser.refs.get(node_path));
-                if node_path.starts_with("/MICROSAR") {
-                    nodes.push(parser.refs.get(&node_path.replace("/MICROSAR", "/AUTOSAR/EcucDefs")));
+                if let Some(vendor_mapping) = vendor_mapping {
+                    if node_path.starts_with(vendor_mapping.0.as_str()) {
+                        nodes.push(parser.refs.get(&node_path.replace(vendor_mapping.0.as_str(), vendor_mapping.1.as_str())));
+                    }
                 }
                 for ref_nodes in nodes {
                     if ref_nodes.is_some() {

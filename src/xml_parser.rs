@@ -5,7 +5,6 @@ use roxmltree::{Document, Node, TextPos};
 use tower_lsp::lsp_types::SymbolKind;
 
 pub struct XmlParserNode{
-    // pub doc: &'input Document<'input>,
     pub file: String,
     pub start: TextPos,
     pub end: TextPos,
@@ -53,18 +52,12 @@ pub struct XmlParser{
     pub file: String,
     last_ident_node: Option<String>,
     pub is_ws_file: bool,
+    pub vendor_mapping: Option<(String, String)>,
 }
 
 impl XmlParser {
     pub fn new(file_name: &str, is_ws_file: bool) -> Self {
-        let xml_parser = XmlParser {ident_nodes: BTreeMap::new(), refs: HashMap::new(), line_offsets: Vec::new(), file: file_name.to_string(), value_nodes: Vec::new(), last_ident_node: None, is_ws_file: is_ws_file};
-        // match xml_parser.parse() {
-        //     Ok(_) => Ok(xml_parser),
-        //     Err(e) => {
-        //         eprintln!("Error: {:?}", e);
-        //         Err(e)
-        //     }
-        // }
+        let xml_parser = XmlParser {ident_nodes: BTreeMap::new(), refs: HashMap::new(), line_offsets: Vec::new(), file: file_name.to_string(), value_nodes: Vec::new(), last_ident_node: None, is_ws_file: is_ws_file, vendor_mapping: None};
         xml_parser
     }
 
@@ -98,7 +91,6 @@ impl XmlParser {
             None => &binding,
         };
         
-        // let last_node = self.ident_nodes.iter().last();
         for child in doc.children() {
             let mut new_path = path.clone();
             let tag_name = child.tag_name().name();
@@ -166,6 +158,11 @@ impl XmlParser {
                     ref_vec.push(node);
                 } else {
                     self.refs.insert(ref_text, vec![node]);
+                }
+                if tag_name == "REFINED-MODULE-DEF-REF" {
+                    let module = child.text().unwrap();
+                    self.vendor_mapping = Some((new_path.to_owned(), module.to_string()));
+                    eprintln!("Vendor Mapping: {} -> {}", new_path, module);
                 }
             } else if tag_name == "ECUC-CONTAINER-VALUE" || tag_name == "ECUC-REFERENCE-VALUE" || tag_name == "ECUC-NUMERICAL-PARAM-VALUE" || tag_name == "ECUC-TEXTUAL-PARAM-VALUE" {
                 let def_ref_node = child.children().find(|child| child.tag_name().name() == "DEFINITION-REF");
