@@ -12,10 +12,6 @@ pub async fn document_symbol(backend: &Backend, params: DocumentSymbolParams) ->
     let file_path = params.text_document.uri.to_file_path().unwrap();
     let file_name = file_path.to_str().unwrap();
 
-    while backend.parsing_pending_dash.contains_key(&file_path) {
-        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-    }
-
     if let Some(parser) = backend.parsers.get(file_name) {
 
         let mut root_symbols = HashMap::new();

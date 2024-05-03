@@ -15,7 +15,7 @@ pub async fn goto_definition(backend: &Backend, params: GotoDefinitionParams) ->
 
             let mut node_list = Vec::new();
 
-            backend.parsers.iter().for_each(|parser| {
+            backend.parsers.iter().for_each(|(_, parser)| {
                 let mut nodes = Vec::new();
                 nodes.push(parser.ident_nodes.get(path));
                 if let Some(vendor_mapping) = &parser.vendor_mapping {

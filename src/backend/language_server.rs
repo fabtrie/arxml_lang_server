@@ -4,24 +4,26 @@ use tower_lsp::lsp_types::*;
 use tower_lsp::LanguageServer;
 use tower_lsp::jsonrpc::Result;
 
+use crate::backend::ClientConfig;
+
 use super::Backend;
 
-#[tower_lsp::async_trait]
+#[tower_lsp::async_trait(?Send)]
 impl LanguageServer for Backend {
-    async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult> {
+    async fn initialize(&mut self, params: InitializeParams) -> Result<InitializeResult> {
         super::init(self, params)
     }
 
-    async fn initialized(&self, _: InitializedParams) {
+    async fn initialized(&mut self, _: InitializedParams) {
         self.client.log_message(MessageType::INFO, "initialized!").await;
         
         let result = self.client.configuration(vec![ConfigurationItem{scope_uri: None, section: Some("arxmlLanguageServer.ignorePattern".to_string()) }]).await;
 
         let regexs = RegexSet::new(result.unwrap()[0].as_array().unwrap().iter().map(|x| x.as_str().unwrap())).unwrap();
 
-        self.regex_dash.insert("ignorePattern".to_string(), regexs);
-
-        self.bool_dash.insert("init_done".to_string(), true);
+        self.config = Some(ClientConfig {
+            ignore_regex_set: regexs,
+        });
 
         let now = Instant::now();
         self.parse_ws();
@@ -29,7 +31,7 @@ impl LanguageServer for Backend {
         eprintln!("parsing took: {:?}", elapsed);
     }
 
-    async fn shutdown(&self) -> Result<()> {
+    async fn shutdown(&mut self) -> Result<()> {
         // self.client
         //     .log_message(MessageType::INFO, "shutting down!")
         //     .await;
@@ -37,19 +39,19 @@ impl LanguageServer for Backend {
         Ok(())
     }
 
-    async fn did_change_workspace_folders(&self, _: DidChangeWorkspaceFoldersParams) {
+    async fn did_change_workspace_folders(&mut self, _: DidChangeWorkspaceFoldersParams) {
         self.client
             .log_message(MessageType::INFO, "workspace folders changed!")
             .await;
     }
 
-    async fn did_change_configuration(&self, _: DidChangeConfigurationParams) {
+    async fn did_change_configuration(&mut self, _: DidChangeConfigurationParams) {
         self.client
             .log_message(MessageType::INFO, "configuration changed!")
             .await;
     }
 
-    async fn did_change_watched_files(&self, params: DidChangeWatchedFilesParams) {
+    async fn did_change_watched_files(&mut self, params: DidChangeWatchedFilesParams) {
         self.client.log_message(MessageType::INFO, "watched files have changed!").await;
         params.changes.iter().for_each(|change| {
             if change.typ == FileChangeType::DELETED {
@@ -58,12 +60,8 @@ impl LanguageServer for Backend {
         });
     }
 
-    async fn did_open(&self, params: DidOpenTextDocumentParams) {
+    async fn did_open(&mut self, params: DidOpenTextDocumentParams) {
         self.client.log_message(MessageType::INFO, "file opened!").await;
-
-        while self.bool_dash.get("init_done").is_none() {
-            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-        }
 
         let file_path = params.text_document.uri.to_file_path().unwrap();
         let file_name = file_path.to_str().unwrap();
@@ -73,19 +71,19 @@ impl LanguageServer for Backend {
         }
     }
 
-    async fn did_change(&self, _: DidChangeTextDocumentParams) {
+    async fn did_change(&mut self, _: DidChangeTextDocumentParams) {
         self.client
             .log_message(MessageType::INFO, "file changed!")
             .await;
     }
 
-    async fn did_save(&self, params: DidSaveTextDocumentParams) {
+    async fn did_save(&mut self, params: DidSaveTextDocumentParams) {
         let file_path = params.text_document.uri.to_file_path().unwrap();
 
         let _ = self.create_parser(&file_path).await;
     }
 
-    async fn did_close(&self, params: DidCloseTextDocumentParams) {
+    async fn did_close(&mut self, params: DidCloseTextDocumentParams) {
         self.client
             .log_message(MessageType::INFO, "file closed!")
             .await;
@@ -94,9 +92,7 @@ impl LanguageServer for Backend {
         let file_name = file_path.to_str().unwrap();
 
         if let Some(parser) = self.parsers.get(file_name) {
-            if ! parser.is_ws_file {
-                // it is not allowed to remove an element if some reference into the map is used
-                drop(parser);
+            if !parser.is_ws_file {
                 self.parsers.remove(file_name);
                 self.client.log_message(MessageType::INFO, "removing parser!").await;
             }

@@ -13,7 +13,7 @@ pub async fn symbol(backend: &Backend, params: WorkspaceSymbolParams) -> Result<
 
         let mut vec_id_nodes: Vec<Vec<SymbolInformation>> = Vec::new();
 
-        vec_id_nodes.par_extend(backend.parsers.par_iter().map(| parser | {
+        vec_id_nodes.par_extend(backend.parsers.par_iter().map(| (_, parser) | {
             let mut symbols = Vec::new();
 
             for node in parser.ident_nodes.values() {

@@ -19,7 +19,7 @@ pub async fn references(backend: &Backend, params: ReferenceParams) -> Result<Op
 
             let vendor_mapping = &parser.vendor_mapping;
 
-            for parser in backend.parsers.iter() {
+            for (_, parser) in backend.parsers.iter() {
                 // eprintln!("parser: {:?}", parser.file);
                 let mut nodes = Vec::new();
                 nodes.push(parser.refs.get(node_path));

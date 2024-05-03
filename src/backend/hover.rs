@@ -17,7 +17,7 @@ pub async fn hover(backend: &Backend, params: HoverParams) -> Result<Option<Hove
             eprintln!("got node: {:?}", node.node.file);
 
             let mut refs = "".to_owned();
-            for parser in backend.parsers.iter() {
+            for (_, parser) in backend.parsers.iter() {
                 // eprintln!("parser: {:?}", parser.file);
                 let mut nodes = Vec::new();
                 nodes.push(parser.refs.get(&node.path));
