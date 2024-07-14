@@ -70,7 +70,7 @@ impl Backend {
             .collect();
     
         self.parsers.par_extend(files.par_iter().filter_map(|file: &PathBuf| {
-            if let Ok(parser) = Backend::create_parser_sync(file, true) {
+            if let Ok(parser) = Backend::create_parser_sync(file, true, None) {
                 Some((file.to_str().unwrap().to_string(), parser))
             } else {
                 None
@@ -90,14 +90,18 @@ impl Backend {
         return false;
     }
 
-    fn create_parser_sync(file: &PathBuf, is_ws_file:bool) -> core::result::Result<XmlParser, Error> {
+    fn create_parser_sync(file: &PathBuf, is_ws_file:bool, content:Option<&str>) -> core::result::Result<XmlParser, Error> {
         
         let file_name = file.to_str().unwrap();
 
         let mut parser = XmlParser::new(file_name, is_ws_file);
 
         let now = Instant::now();
-        let result = parser.parse();
+        let result = match content {
+            Some(content) => parser.parse(content),
+            None => parser.parse_file()
+        };
+        
         match result {
             Ok(()) => {
                 eprintln!("parsing {} took: {:?}", file_name, now.elapsed());
@@ -109,8 +113,8 @@ impl Backend {
         }
     }
 
-    async fn create_parser(&mut self, file: &PathBuf)  -> core::result::Result<(), Error> {
-        let result = Backend::create_parser_sync(file, self.is_ws_file(file));
+    async fn create_parser(&mut self, file: &PathBuf, content:Option<&str>)  -> core::result::Result<(), Error> {
+        let result = Backend::create_parser_sync(file, self.is_ws_file(file), content);
         let file_name = file.to_str().unwrap();
         match result {
             Ok(parser) => {

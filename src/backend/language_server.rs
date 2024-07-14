@@ -67,20 +67,39 @@ impl LanguageServer for Backend {
         let file_name = file_path.to_str().unwrap();
 
         if !self.parsers.contains_key(file_name) {
-            let _ = self.create_parser(&file_path).await;
+            let _ = self.create_parser(&file_path, None).await;
         }
     }
 
-    async fn did_change(&mut self, _: DidChangeTextDocumentParams) {
+    async fn did_change(&mut self, params: DidChangeTextDocumentParams) {
         self.client
             .log_message(MessageType::INFO, "file changed!")
             .await;
+        
+        let file_path = params.text_document.uri.to_file_path().unwrap();
+        let file_name = file_path.to_str().unwrap();
+        if self.parsers.contains_key(file_name) {
+            self.parsers.remove(file_name);
+        }
+
+        // let mut f = File::create("foo.txt").unwrap();
+        // f.write_all(params.content_changes.get(0).unwrap().text.as_bytes()).unwrap();
+
+        let result = Backend::create_parser_sync(&file_path, self.is_ws_file(&file_path), Some(&params.content_changes.get(0).unwrap().text));
+        match result {
+            Ok(parser) => {
+                self.parsers.insert(file_name.to_string(), parser);
+            },
+            Err(e) => {
+                self.client.log_message(MessageType::ERROR, format!("could not parse file: {:?}", e)).await;
+            }
+        }
     }
 
     async fn did_save(&mut self, params: DidSaveTextDocumentParams) {
         let file_path = params.text_document.uri.to_file_path().unwrap();
 
-        let _ = self.create_parser(&file_path).await;
+        let _ = self.create_parser(&file_path, None).await;
     }
 
     async fn did_close(&mut self, params: DidCloseTextDocumentParams) {

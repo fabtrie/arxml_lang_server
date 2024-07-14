@@ -4,10 +4,23 @@ use tower_lsp::jsonrpc::Result;
 use super::Backend;
 
 pub fn init(backend: &mut Backend, params: InitializeParams) -> Result<InitializeResult> {
+
+    let mut sync_type = TextDocumentSyncKind::NONE;
+
+    if let Some(init_options) = &params.initialization_options {
+        if let Some(instant_symbol_refresh) = init_options.get("instantSymbolRefresh") {
+            if let Some(value) = instant_symbol_refresh.as_bool() {
+                if value {
+                    sync_type = TextDocumentSyncKind::FULL;
+                }
+            }
+        }
+    }
+
     if let Some(ws_folders) = params.workspace_folders {
         backend.ws_folder = ws_folders;
     }
-    
+
     Ok(InitializeResult {
         server_info: None,
         capabilities: ServerCapabilities { 
@@ -23,7 +36,7 @@ pub fn init(backend: &mut Backend, params: InitializeParams) -> Result<Initializ
             workspace_symbol_provider: Some(OneOf::Left(true)),
             text_document_sync: Some(TextDocumentSyncCapability::Options(TextDocumentSyncOptions {
                 open_close: Some(true),
-                change: Some(TextDocumentSyncKind::NONE),
+                change: Some(sync_type),
                 will_save: None,
                 will_save_wait_until: None,
                 save: Some(TextDocumentSyncSaveOptions::SaveOptions(SaveOptions{include_text: None})),

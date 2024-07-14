@@ -61,10 +61,15 @@ impl XmlParser {
         xml_parser
     }
 
-    pub fn parse(&mut self) -> Result<(), Error> {
+    pub fn parse_file(&mut self) -> Result<(), Error> {
+        let content = std::fs::read_to_string(self.file.to_string())?;
+        self.parse(&content)
+    }
+
+    pub fn parse(&mut self, content: &str) -> Result<(), Error> {
         // eprintln!("reading file: {}", self.file);
         // let now = Instant::now();
-        let content = std::fs::read_to_string(self.file.to_string())?;
+        // let content = std::fs::read_to_string(self.file.to_string())?;
         self.line_offsets = get_line_offsets(&content);
         // let elapsed = now.elapsed();
 
@@ -243,7 +248,7 @@ impl XmlParser {
     }
 
     pub fn get_ident_node_at(&self, line: usize, position: usize) -> Option<&IdentNode> {
-        let offset = self.line_offsets.get(line).unwrap() + position;
+        let offset = self.line_offsets.get(line)? + position;
 
         for node in self.ident_nodes.values().rev() {
             let start = node.node.range.start;
@@ -256,7 +261,7 @@ impl XmlParser {
     }
 
     pub fn get_ref_text_at(&self, line: usize, position: usize) -> Option<(String, usize)> {
-        let offset = self.line_offsets.get(line).unwrap() + position;
+        let offset = self.line_offsets.get(line)? + position;
 
         for node in self.refs.values().flatten() {
             let start = node.text_range.start;

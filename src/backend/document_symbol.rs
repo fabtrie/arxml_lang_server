@@ -80,10 +80,6 @@ pub async fn document_symbol(backend: &Backend, params: DocumentSymbolParams) ->
                 symbol.children.as_mut().unwrap().push(value_symbol);
             });
 
-            if node.path == "/MICROSAR" {
-                eprintln!("length: {}", path_length);
-            }
-
             if path_length == 1 {
                 root_symbols.insert(node.path.to_string(), symbol);
             } else {
