@@ -1,4 +1,5 @@
 use std::env;
+// use bugsalot::debugger;
 use tokio::net::TcpStream;
 use tower_lsp::{LspService, Server};
 mod xml_parser;
@@ -12,6 +13,8 @@ async fn main() {
     use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 
     let args: Vec<String> = env::args().collect();
+
+    // debugger::wait_until_attached(None).expect("state() not implemented on this platform");
 
     if args.len() > 1 {
         // the first argument is the name of this executable

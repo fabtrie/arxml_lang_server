@@ -43,6 +43,12 @@
                 "12345"
             ],
             "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "attach",
+            "name": "attach 'arxml_lang_server'",
+            "program": "${workspaceFolder}/target/debug/arxml_lang_server.exe",
         }
     ]
 }

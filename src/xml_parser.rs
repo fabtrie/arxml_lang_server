@@ -100,120 +100,30 @@ impl XmlParser {
             let mut new_path = path.clone();
             let tag_name = child.tag_name().name();
 
-            if let Some(short_name) = get_short_name_node(child)
-            {
-                new_path.push_str(&format!("/{}", short_name.text().unwrap()));
-                let (start, end) = self.get_text_pos(child.range());
-                let(short_name_start, short_name_end) = self.get_text_pos(short_name.first_child().unwrap().range());
+            if let Some(short_name) = get_short_name_node(child) {
+                if let Some(short_name_text) = short_name.text() {
+                    new_path.push_str(&format!("/{}", short_name_text));
+                    let (start, end) = self.get_text_pos(child.range());
+                    let(short_name_start, short_name_end) = self.get_text_pos(short_name.first_child().unwrap().range());
 
-                let def_ref = if tag_name == "ECUC-CONTAINER-VALUE" {
-                    let def_ref = child.children().find(|child1| child1.tag_name().name() == "DEFINITION-REF");
-                    if def_ref.is_some() {
-                        Some(def_ref.unwrap().text().unwrap().to_string())
+                    let def_ref = if tag_name == "ECUC-CONTAINER-VALUE" {
+                        if let Some(def_ref) = child.children().find(|child1| child1.tag_name().name() == "DEFINITION-REF") {
+                            if let Some(def_ref_text) = def_ref.text() {
+                                Some(def_ref_text.to_string())
+                            } else {
+                                let start_pos = self.get_text_pos(def_ref.range()).0;
+                                eprint!("ERROR: No text found for node: {}:{}:{}\n", self.file.to_string(), start_pos.row, start_pos.col);
+                                None
+                            }
+                        } else {
+                            None
+                        }
                     } else {
                         None
-                    }
-                } else {
-                    None
-                };
-
-                let node = IdentNode {
-                    short_name: short_name.text().unwrap().to_string(),
-                    node: XmlParserNode {
-                        // doc: self.doc,
-                        file: self.file.to_string(),
-                        start: start,
-                        end: end,
-                        range: child.range(),
-                        tag_name: tag_name.to_string(),
-                        def_ref: def_ref,
-
-                    },
-                    short_name_start: short_name_start,
-                    short_name_end: short_name_end,
-                    short_name_range: short_name.first_child().unwrap().range(),
-                    path: new_path.clone(),
-                    values: Vec::new(),
-                };
-                self.ident_nodes.insert(new_path.to_owned(), node);
-                self.last_ident_node = Some(new_path.clone());
-                
-            } else if child.has_attribute("DEST") {
-                let ref_text = child.text().unwrap().to_string();
-                // let mut line_number = self.bla;
-                let (start, end) = self.get_text_pos(child.range());
-                // eprintln!("{}: start: {:?} end: {:?} line: {}", ref_text, start, end, line_number);
-                // line_number = line;
-                let text_node = child.first_child().unwrap();
-                let (text_start, text_end) = self.get_text_pos(text_node.range());
-                let node = RefNode {
-                    // doc: self.doc,
-                    file: self.file.to_string(),
-                    start: start,
-                    end: end,
-                    range: child.range(),
-                    tag_name: tag_name.to_string(),
-                    text: ref_text.clone(),
-                    text_start: text_start,
-                    text_end: text_end,
-                    text_range: text_node.range(),
-                    path: new_path.clone(),
-                };
-                if let Some(ref_vec) = self.refs.get_mut(&ref_text) {
-                    ref_vec.push(node);
-                } else {
-                    self.refs.insert(ref_text, vec![node]);
-                }
-                if tag_name == "REFINED-MODULE-DEF-REF" {
-                    let module = child.text().unwrap();
-                    self.vendor_mapping = Some((new_path.to_owned(), module.to_string()));
-                    eprintln!("Vendor Mapping: {} -> {}", new_path, module);
-                }
-            } else if tag_name == "ECUC-CONTAINER-VALUE" || tag_name == "ECUC-REFERENCE-VALUE" || tag_name == "ECUC-NUMERICAL-PARAM-VALUE" || tag_name == "ECUC-TEXTUAL-PARAM-VALUE" {
-                let def_ref_node = child.children().find(|child| child.tag_name().name() == "DEFINITION-REF");
-
-                if def_ref_node.is_some() {
-                    let def_ref_node = def_ref_node.unwrap();
-                    let def_ref = def_ref_node.text().unwrap();
-                    let name = def_ref.split('/').last().unwrap();
-                    let (start, end) = self.get_text_pos(child.range());
-                    let path = format!("{}/{}", new_path, name);
-                    let dest_type = def_ref_node.attribute("DEST");
-
-                    let typ = match tag_name {
-                        "ECUC-TEXTUAL-PARAM-VALUE" => {
-                            match dest_type {
-                                Some("ECUC-ENUMERATION-PARAM-DEF") => SymbolKind::ENUM,
-                                Some("ECUC-FUNCTION-NAME-DEF") => SymbolKind::FUNCTION,
-                                _ => SymbolKind::STRING,
-                            }
-                        },
-                        "ECUC-NUMERICAL-PARAM-VALUE" => {
-                            match dest_type {
-                                Some("ECUC-BOOLEAN-PARAM-DEF") => SymbolKind::BOOLEAN,
-                                _ => SymbolKind::NUMBER,
-                            }
-                        },
-                        _ => SymbolKind::VARIABLE,
                     };
 
-                    let value = if tag_name == "ECUC-REFERENCE-VALUE" {
-                        child.children().find(|child| child.tag_name().name() == "VALUE-REF")
-                    } else {
-                        child.children().find(|child| child.tag_name().name() == "VALUE")
-                    };
-                    let value = match value {
-                        Some(value) => {
-                            match value.text() {
-                                Some(value) => value,
-                                None => "",
-                            }
-                        },
-                        None => "",
-                    };
-
-                    let value = ValueNode {
-                        short_name: name.to_string(),
+                    let node = IdentNode {
+                        short_name: short_name_text.to_string(),
                         node: XmlParserNode {
                             // doc: self.doc,
                             file: self.file.to_string(),
@@ -221,13 +131,118 @@ impl XmlParser {
                             end: end,
                             range: child.range(),
                             tag_name: tag_name.to_string(),
-                            def_ref: Some(def_ref.to_string()),
+                            def_ref: def_ref,
+
                         },
-                        path: path.clone(),
-                        value: value.to_string(),
-                        typ: typ
+                        short_name_start: short_name_start,
+                        short_name_end: short_name_end,
+                        short_name_range: short_name.first_child().unwrap().range(),
+                        path: new_path.clone(),
+                        values: Vec::new(),
                     };
-                    self.ident_nodes.get_mut(self.last_ident_node.as_ref().unwrap()).unwrap().values.push(value);
+                    self.ident_nodes.insert(new_path.to_owned(), node);
+                    self.last_ident_node = Some(new_path.clone());
+                } else {
+                    let start_pos = self.get_text_pos(short_name.range()).0;
+                    eprint!("ERROR: No text found for node: {}:{}:{}\n", self.file.to_string(), start_pos.row, start_pos.col);
+                }
+                
+            } else if child.has_attribute("DEST") {
+                if let Some(ref_text) = child.text() {
+                    let (start, end) = self.get_text_pos(child.range());
+                    let text_node = child.first_child().unwrap();
+                    let (text_start, text_end) = self.get_text_pos(text_node.range());
+                    let node = RefNode {
+                        // doc: self.doc,
+                        file: self.file.to_string(),
+                        start: start,
+                        end: end,
+                        range: child.range(),
+                        tag_name: tag_name.to_string(),
+                        text: ref_text.to_string(),
+                        text_start: text_start,
+                        text_end: text_end,
+                        text_range: text_node.range(),
+                        path: new_path.clone(),
+                    };
+                    if let Some(ref_vec) = self.refs.get_mut(ref_text) {
+                        ref_vec.push(node);
+                    } else {
+                        self.refs.insert(ref_text.to_string(), vec![node]);
+                    }
+                    if tag_name == "REFINED-MODULE-DEF-REF" {
+                        let module = ref_text;
+                        self.vendor_mapping = Some((new_path.to_owned(), module.to_string()));
+                        eprintln!("Vendor Mapping: {} -> {}", new_path, module);
+                    }
+                } else {
+                    let start_pos = self.get_text_pos(child.range()).0;
+                    eprint!("ERROR: No text found for ref node: {}:{}:{}\n", self.file.to_string(), start_pos.row, start_pos.col);
+                }
+            } else if tag_name == "ECUC-CONTAINER-VALUE" || tag_name == "ECUC-REFERENCE-VALUE" || tag_name == "ECUC-NUMERICAL-PARAM-VALUE" || tag_name == "ECUC-TEXTUAL-PARAM-VALUE" {
+                let def_ref_node = child.children().find(|child| child.tag_name().name() == "DEFINITION-REF");
+
+                if def_ref_node.is_some() {
+                    let def_ref_node = def_ref_node.unwrap();
+                    if let Some(def_ref_text) = def_ref_node.text() {
+                        let def_ref = def_ref_text;
+                        let name = def_ref.split('/').last().unwrap();
+                        let (start, end) = self.get_text_pos(child.range());
+                        let path = format!("{}/{}", new_path, name);
+                        let dest_type = def_ref_node.attribute("DEST");
+
+                        let typ = match tag_name {
+                            "ECUC-TEXTUAL-PARAM-VALUE" => {
+                                match dest_type {
+                                    Some("ECUC-ENUMERATION-PARAM-DEF") => SymbolKind::ENUM,
+                                    Some("ECUC-FUNCTION-NAME-DEF") => SymbolKind::FUNCTION,
+                                    _ => SymbolKind::STRING,
+                                }
+                            },
+                            "ECUC-NUMERICAL-PARAM-VALUE" => {
+                                match dest_type {
+                                    Some("ECUC-BOOLEAN-PARAM-DEF") => SymbolKind::BOOLEAN,
+                                    _ => SymbolKind::NUMBER,
+                                }
+                            },
+                            _ => SymbolKind::VARIABLE,
+                        };
+
+                        let value = if tag_name == "ECUC-REFERENCE-VALUE" {
+                            child.children().find(|child| child.tag_name().name() == "VALUE-REF")
+                        } else {
+                            child.children().find(|child| child.tag_name().name() == "VALUE")
+                        };
+                        let value = match value {
+                            Some(value) => {
+                                match value.text() {
+                                    Some(value) => value,
+                                    None => "",
+                                }
+                            },
+                            None => "",
+                        };
+
+                        let value = ValueNode {
+                            short_name: name.to_string(),
+                            node: XmlParserNode {
+                                // doc: self.doc,
+                                file: self.file.to_string(),
+                                start: start,
+                                end: end,
+                                range: child.range(),
+                                tag_name: tag_name.to_string(),
+                                def_ref: Some(def_ref.to_string()),
+                            },
+                            path: path.clone(),
+                            value: value.to_string(),
+                            typ: typ
+                        };
+                        self.ident_nodes.get_mut(self.last_ident_node.as_ref().unwrap()).unwrap().values.push(value);
+                    } else {
+                        let start_pos = self.get_text_pos(def_ref_node.range()).0;
+                        eprint!("ERROR: No text found for node: {}:{}:{}\n", self.file.to_string(), start_pos.row, start_pos.col);
+                    }
                 }
             }
             self.traverse_xml(new_path, Some(&child), doc2);
